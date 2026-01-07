@@ -16,7 +16,7 @@ data_list.append({'id': str(uuid.uuid4()), 'name': 'User02', 'email': 'user02@ex
 data_list.append({'id': str(uuid.uuid4()), 'name': 'User03', 'email': 'user03@example.com', 'is_active': False}) # Ejemplo de item inactivo
 
 def get_record_by_id(record_id):
-    for pos, rec in enumerate(records):
+    for pos, rec in enumerate(data_list):
         if rec["id"] == record_id:
             return pos, rec
     return None, None
@@ -62,7 +62,7 @@ class DemoRestApiItem(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        records[idx] = {
+        data_list[idx] = {
             "id": item_id,                     # ID inmutable
             "name": payload["name"],
             "email": payload["email"],
@@ -70,7 +70,7 @@ class DemoRestApiItem(APIView):
         }
 
         return Response(
-            {"message": "Recurso reemplazado exitosamente.", "data": records[idx]},
+            {"message": "Recurso reemplazado exitosamente.", "data": data_list[idx]},
             status=status.HTTP_200_OK
         )
 
@@ -95,7 +95,7 @@ class DemoRestApiItem(APIView):
             **{k: v for k, v in payload.items() if k in ["name", "email", "is_active"]}
         }
 
-        records[idx] = updated
+        data_list[idx] = updated
 
         return Response(
             {"message": "Campos actualizados correctamente.", "data": updated},
@@ -118,7 +118,7 @@ class DemoRestApiItem(APIView):
             )
 
         record["is_active"] = False
-        records[idx] = record
+        data_list[idx] = record
 
         return Response(
             {"message": "Recurso desactivado correctamente.", "data": record},
