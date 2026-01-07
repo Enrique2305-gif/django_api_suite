@@ -15,6 +15,13 @@ data_list.append({'id': str(uuid.uuid4()), 'name': 'User01', 'email': 'user01@ex
 data_list.append({'id': str(uuid.uuid4()), 'name': 'User02', 'email': 'user02@example.com', 'is_active': True})
 data_list.append({'id': str(uuid.uuid4()), 'name': 'User03', 'email': 'user03@example.com', 'is_active': False}) # Ejemplo de item inactivo
 
+def get_record_by_id(record_id):
+    for pos, rec in enumerate(records):
+        if rec["id"] == record_id:
+            return pos, rec
+    return None, None
+
+
 class DemoRestApi(APIView):
     name = "Demo REST API"
     def get(self, request):
@@ -35,83 +42,85 @@ class DemoRestApi(APIView):
       data_list.append(data)
 
       return Response({'message': 'Dato guardado exitosamente.', 'data': data}, status=status.HTTP_201_CREATED)
+      
 
-      def put(self, request):
-        data = request.data
+class DemoRestApiItem(APIView):
+     
+    def put(self, request, item_id):
+        payload = request.data
+        idx, record = get_record_by_id(item_id)
 
-        # Validar que el ID exista
-        if 'id' not in data:
+        if record is None:
             return Response(
-                {'error': 'El campo id es obligatorio.'},
+                {"message": "No se encontró el recurso solicitado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not payload.get("name") or not payload.get("email"):
+            return Response(
+                {"message": "PUT requiere name y email (reemplazo total)."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        for item in data_list:
-            if item['id'] == data['id']:
-                # Reemplazo completo excepto el ID
-                item['name'] = data.get('name')
-                item['email'] = data.get('email')
-                item['is_active'] = data.get('is_active', item['is_active'])
-
-                return Response(
-                    {'message': 'Elemento actualizado completamente.', 'data': item},
-                    status=status.HTTP_200_OK
-                )
+        records[idx] = {
+            "id": item_id,                     # ID inmutable
+            "name": payload["name"],
+            "email": payload["email"],
+            "is_active": record["is_active"]   # conserva estado
+        }
 
         return Response(
-            {'error': 'Elemento no encontrado.'},
-            status=status.HTTP_404_NOT_FOUND
+            {"message": "Recurso reemplazado exitosamente.", "data": records[idx]},
+            status=status.HTTP_200_OK
         )
 
-    def patch(self, request):
-        data = request.data
+    def patch(self, request, item_id):
+        payload = request.data
+        idx, record = get_record_by_id(item_id)
 
-        if 'id' not in data:
+        if record is None:
             return Response(
-                {'error': 'El campo id es obligatorio.'},
+                {"message": "Recurso no encontrado."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if "id" in payload and payload["id"] != item_id:
+            return Response(
+                {"message": "El identificador no puede ser modificado."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        for item in data_list:
-            if item['id'] == data['id']:
-                # Actualización parcial
-                if 'name' in data:
-                    item['name'] = data['name']
-                if 'email' in data:
-                    item['email'] = data['email']
-                if 'is_active' in data:
-                    item['is_active'] = data['is_active']
+        updated = {
+            **record,
+            **{k: v for k, v in payload.items() if k in ["name", "email", "is_active"]}
+        }
 
-                return Response(
-                    {'message': 'Elemento actualizado parcialmente.', 'data': item},
-                    status=status.HTTP_200_OK
-                )
+        records[idx] = updated
 
         return Response(
-            {'error': 'Elemento no encontrado.'},
-            status=status.HTTP_404_NOT_FOUND
+            {"message": "Campos actualizados correctamente.", "data": updated},
+            status=status.HTTP_200_OK
         )
 
-    def delete(self, request):
-        data = request.data
+    def delete(self, request, item_id):
+        idx, record = get_record_by_id(item_id)
 
-        if 'id' not in data:
+        if record is None:
             return Response(
-                {'error': 'El campo id es obligatorio.'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"message": "Recurso inexistente."},
+                status=status.HTTP_404_NOT_FOUND
             )
 
-        for item in data_list:
-            if item['id'] == data['id']:
-                # Eliminación lógica
-                item['is_active'] = False
+        if not record["is_active"]:
+            return Response(
+                {"message": "El recurso ya estaba desactivado."},
+                status=status.HTTP_200_OK
+            )
 
-                return Response(
-                    {'message': 'Elemento eliminado lógicamente.'},
-                    status=status.HTTP_200_OK
-                )
+        record["is_active"] = False
+        records[idx] = record
 
         return Response(
-            {'error': 'Elemento no encontrado.'},
-            status=status.HTTP_404_NOT_FOUND
+            {"message": "Recurso desactivado correctamente.", "data": record},
+            status=status.HTTP_200_OK
         )
